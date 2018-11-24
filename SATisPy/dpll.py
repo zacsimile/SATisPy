@@ -11,7 +11,7 @@ def dpll(clauses):
     clauses : list
         A list of CNF clauses.
     '''
-    #print(clauses)
+
     model, clauses = unit_prop(clauses)
     if len(clauses) == 0:
         return model
@@ -20,14 +20,22 @@ def dpll(clauses):
     else:
         # Choose a literal
         return_list = model
-        lit = clauses[0][0]
-        clauses_1 = list(compress(clauses, [lit not in x for x in clauses])) # apply_literal(lit, clauses)
-        clauses_2 = list(compress(clauses, [-lit not in x for x in clauses])) # apply_literal(-lit, clauses)
+        flat_list = [item for sublist in clauses for item in sublist]
+        idx = 0
+        lit = flat_list[idx]
+        while lit in return_list or -lit in return_list:
+            idx = idx+1
+            lit = flat_list[idx]
+        clauses_1 = subsume_literal(lit, clauses)
+        clauses_2 = subsume_literal(-lit, clauses)
+        
         # Redundancy check
         if clauses_1 == clauses:
             clauses_1 = [[]]
         if clauses_2 == clauses:
             clauses_2 = [[]]
+        
+        # Branch
         l1 = dpll(clauses_1)
         l2 = dpll(clauses_2)
         if l1 != 'UNSATISFIABLE':
@@ -51,11 +59,7 @@ def unit_prop(clauses):
         for clause in clauses:
             if len(clause) == 1:
                 try:
-                    #clauses.remove(clause)
-                    #print('delete' + clause[0])
-                    #print(clauses)
-                    clauses = list(compress(clauses, [clause[0] not in x for x in clauses]))
-                    #print(clauses)
+                    clauses = subsume_literal(clause[0], clauses)
                 except:
                     pass
                 model.append(clause[0])
@@ -77,13 +81,12 @@ def apply_literal(l, clauses):
         A list of CNF clauses.
     '''
     new_clauses = []
-    #for i in range(len(clauses)):
     for clause in clauses:
         new_clauses.append([x for x in clause if abs(x) != abs(l)])
-        # new_clauses.append(list(map(lambda x: \
-        #     True if x == l else (False if x == -l else x), clause)))
     return new_clauses
-    # return new_clauses
+
+def subsume_literal(l, clauses):
+    return list(compress(clauses, [l not in x for x in clauses])) 
 
 def parse_cnf_file(fn):
     '''
@@ -108,14 +111,14 @@ def parse_cnf_file(fn):
         n_clauses = int(cnf_properties[3])
         # Create a list of clauses
         for i in range(n_clauses):
-            clause = list(map(int, cnf_split[i+1].split()))[:-1]
+            clause = list(map(int, cnf_split[i+1].split()))
             # Make sure all values in our CNF file are within 
             # [-n_var, nvar]
-            if any(abs(i) > n_var for i in clause):
+            if any(abs(i) > n_var for i in clause) or clause[-1] != 0:
                 # File contains improper predicates, so it's unsat
                 return('UNSATISFIABLE')
             # Append to our list of clauses
-            delta.append(clause)
+            delta.append(clause[:-1])
         # Now apply DPLL
         decision = dpll(delta)
         # sat
