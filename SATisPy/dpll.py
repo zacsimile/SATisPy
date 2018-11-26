@@ -20,14 +20,16 @@ def dpll(clauses):
     else:
         # Choose a literal
         return_list = model
-        flat_list = [item for sublist in clauses for item in sublist]
+        flat_list = sorted([item for sublist in clauses for item in sublist],key=abs)
         idx = 0
         lit = flat_list[idx]
         while lit in return_list or -lit in return_list:
             idx = idx+1
             lit = flat_list[idx]
         clauses_1 = subsume_literal(lit, clauses)
+        clauses_1 = apply_literal(-lit, clauses_1)
         clauses_2 = subsume_literal(-lit, clauses)
+        clauses_2 = apply_literal(lit, clauses_2)
         
         # Redundancy check
         if clauses_1 == clauses:
@@ -123,7 +125,7 @@ def parse_cnf_file(fn):
         decision = dpll(delta)
         # sat
         if decision != 'UNSATISFIABLE':
-            return 'SATISFIABLE ' + \
+            return 'SATISFIABLE\n' + \
                    ' '.join(str(d) for d in sorted(decision, key=abs))
         # unsat
         return decision
