@@ -1,8 +1,8 @@
-import sys
+import argparse
 import numpy as np
 from itertools import compress
 
-def dpll(clauses):
+def basic_dpll(clauses):
     '''
     Apply basic DPLL algorithm to a list of CNF clauses.
 
@@ -20,12 +20,7 @@ def dpll(clauses):
     else:
         # Choose a literal
         return_list = model
-        flat_list = sorted([item for sublist in clauses for item in sublist],key=abs)
-        idx = 0
-        lit = flat_list[idx]
-        while lit in return_list or -lit in return_list:
-            idx = idx+1
-            lit = flat_list[idx]
+        lit = choose_literal(clauses, return_list)
         clauses_1 = subsume_literal(lit, clauses)
         clauses_1 = apply_literal(-lit, clauses_1)
         clauses_2 = subsume_literal(-lit, clauses)
@@ -38,8 +33,8 @@ def dpll(clauses):
             clauses_2 = [[]]
         
         # Branch
-        l1 = dpll(clauses_1)
-        l2 = dpll(clauses_2)
+        l1 = basic_dpll(clauses_1)
+        l2 = basic_dpll(clauses_2)
         if l1 != 'UNSATISFIABLE':
             return_list.extend(l1)
             return_list.extend([lit])
@@ -50,6 +45,17 @@ def dpll(clauses):
             return(return_list)
         else:
             return 'UNSATISFIABLE'
+
+def choose_literal(clauses, current_model):
+    flat_list = sorted( \
+                [item for sublist in clauses for item in sublist], \
+                key=abs)
+    idx = 0
+    lit = flat_list[idx]
+    while lit in current_model or -lit in current_model:
+        idx = idx+1
+        lit = flat_list[idx]
+    return lit
 
 def unit_prop(clauses):
     '''
@@ -90,7 +96,7 @@ def apply_literal(l, clauses):
 def subsume_literal(l, clauses):
     return list(compress(clauses, [l not in x for x in clauses])) 
 
-def parse_cnf_file(fn):
+def parse_cnf_file(fn, method='basic'):
     '''
     Parameters
     ----------
@@ -122,10 +128,10 @@ def parse_cnf_file(fn):
             # Append to our list of clauses
             delta.append(clause[:-1])
         # Now apply DPLL
-        decision = dpll(delta)
+        decision = dpll(delta, method)
         # sat
         if decision != 'UNSATISFIABLE':
-            return 'SATISFIABLE\n' + \
+            return ' SATISFIABLE ' + \
                    ' '.join(str(d) for d in sorted(decision, key=abs))
         # unsat
         return decision
@@ -133,8 +139,21 @@ def parse_cnf_file(fn):
         # File is in the wrong format, so it's unsat
         return 'UNSATISFIABLE', []
 
+def dpll(clauses, method='basic'):
+    if method == 'basic':
+        return basic_dpll(clauses)
+    else:
+        return 'UNSATISFIABLE'
+    return 'UNSATISFIABLE'
+
 if __name__ == '__main__':
-    with open(sys.argv[1], 'r') as f:
+    parser = argparse.ArgumentParser()
+    parser.add_argument('fn', type=str, help='CNF file to analyze.')
+    parser.add_argument('-m', '--method', type=str, default='basic',
+                        choices = ['basic'],
+                        help='DPLL method. Options are "basic"')
+    args = parser.parse_args()
+    with open(args.fn, 'r') as f:
         cnf = f.read()
-        decision = parse_cnf_file(cnf)
+        decision = parse_cnf_file(cnf, args.method)
         print(decision)
